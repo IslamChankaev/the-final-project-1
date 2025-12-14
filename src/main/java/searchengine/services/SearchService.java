@@ -138,6 +138,8 @@ public class SearchService {
                 .collect(Collectors.toList());
     }
 
+    // services/SearchService.java - исправьте метод findPagesByLemmas
+
     private List<Page> findPagesByLemmas(List<Lemma> lemmas, Site site) {
         if (lemmas.isEmpty()) {
             return List.of();
@@ -145,7 +147,9 @@ public class SearchService {
 
         // Начинаем с первой (самой редкой) леммы
         Lemma firstLemma = lemmas.get(0);
-        List<Page> pages = indexRepository.findByLemma(lemmas).stream()
+
+        // Используйте findByLemma (для одного) вместо findByLemmaIn
+        List<Page> pages = indexRepository.findByLemma(firstLemma).stream()
                 .map(Index::getPage)
                 .filter(page -> page.getSite().equals(site))
                 .collect(Collectors.toList());
@@ -153,7 +157,7 @@ public class SearchService {
         // Сужаем поиск по остальным леммам
         for (int i = 1; i < lemmas.size() && !pages.isEmpty(); i++) {
             Lemma lemma = lemmas.get(i);
-            List<Page> lemmaPages = indexRepository.findByLemma(lemmas).stream()
+            List<Page> lemmaPages = indexRepository.findByLemma(lemma).stream()
                     .map(Index::getPage)
                     .filter(page -> page.getSite().equals(site))
                     .collect(Collectors.toList());

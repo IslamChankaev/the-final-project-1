@@ -11,8 +11,14 @@ import java.util.Optional;
 
 @Repository
 public interface LemmaRepository extends JpaRepository<Lemma, Integer> {
+
     Optional<Lemma> findByLemmaAndSite(String lemma, Site site);
+
     List<Lemma> findByLemmaInAndSite(List<String> lemmas, Site site);
+
+    @Query("SELECT l FROM Lemma l WHERE l.lemma IN :lemmas AND l.site = :site")
+    List<Lemma> findLemmasByLemmaListAndSite(List<String> lemmas, Site site);
+
     List<Lemma> findBySite(Site site);
 
     @Query("SELECT l FROM Lemma l WHERE l.site = :site ORDER BY l.frequency ASC")
