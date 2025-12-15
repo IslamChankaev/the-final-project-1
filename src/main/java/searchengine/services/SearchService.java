@@ -52,10 +52,10 @@ public class SearchService {
                 allResults.addAll(siteResults);
             }
 
-            // Сортируем по релевантности
+
             allResults.sort((a, b) -> Double.compare(b.getRelevance(), a.getRelevance()));
 
-            // Применяем пагинацию
+
             int total = allResults.size();
             int end = Math.min(offset + limit, total);
             List<SearchResult> paginatedResults = allResults.subList(
@@ -88,14 +88,14 @@ public class SearchService {
     }
 
     private List<SearchResult> searchInSite(String query, Site site) {
-        // Извлекаем леммы из запроса
+
         List<String> queryLemmas = lemmaExtractor.extractQueryLemmas(query);
 
         if (queryLemmas.isEmpty()) {
             return List.of();
         }
 
-        // Получаем леммы из БД и фильтруем
+
         List<Lemma> siteLemmas = lemmaRepository.findByLemmaInAndSite(queryLemmas, site);
         siteLemmas = filterCommonLemmas(siteLemmas, site);
 
@@ -103,20 +103,20 @@ public class SearchService {
             return List.of();
         }
 
-        // Сортируем по частоте (от редких к частым)
+
         siteLemmas.sort(Comparator.comparingInt(Lemma::getFrequency));
 
-        // Поиск страниц
+
         List<Page> foundPages = findPagesByLemmas(siteLemmas, site);
 
         if (foundPages.isEmpty()) {
             return List.of();
         }
 
-        // Рассчитываем релевантность
+
         Map<Page, Double> relevanceMap = calculateRelevance(foundPages, siteLemmas);
 
-        // Создаем результаты поиска
+
         return createSearchResults(foundPages, relevanceMap, query, site);
     }
 
@@ -138,23 +138,23 @@ public class SearchService {
                 .collect(Collectors.toList());
     }
 
-    // services/SearchService.java - исправьте метод findPagesByLemmas
+
 
     private List<Page> findPagesByLemmas(List<Lemma> lemmas, Site site) {
         if (lemmas.isEmpty()) {
             return List.of();
         }
 
-        // Начинаем с первой (самой редкой) леммы
+
         Lemma firstLemma = lemmas.get(0);
 
-        // Используйте findByLemma (для одного) вместо findByLemmaIn
+
         List<Page> pages = indexRepository.findByLemma(firstLemma).stream()
                 .map(Index::getPage)
                 .filter(page -> page.getSite().equals(site))
                 .collect(Collectors.toList());
 
-        // Сужаем поиск по остальным леммам
+
         for (int i = 1; i < lemmas.size() && !pages.isEmpty(); i++) {
             Lemma lemma = lemmas.get(i);
             List<Page> lemmaPages = indexRepository.findByLemma(lemma).stream()
@@ -172,7 +172,7 @@ public class SearchService {
         Map<Page, Double> relevanceMap = new HashMap<>();
         double maxRelevance = 0.0;
 
-        // Вычисляем абсолютную релевантность
+
         for (Page page : pages) {
             Float sumRank = indexRepository.calculateRelevanceForPage(page, lemmas);
             double relevance = sumRank != null ? sumRank : 0.0;
@@ -180,7 +180,7 @@ public class SearchService {
             maxRelevance = Math.max(maxRelevance, relevance);
         }
 
-        // Нормализуем к относительной релевантности
+
         if (maxRelevance > 0) {
             for (Map.Entry<Page, Double> entry : relevanceMap.entrySet()) {
                 entry.setValue(entry.getValue() / maxRelevance);
@@ -204,7 +204,7 @@ public class SearchService {
             result.setTitle(textCleaner.extractTitle(page.getContent()));
             result.setRelevance(relevanceMap.getOrDefault(page, 0.0));
 
-            // Генерируем сниппет
+
             String cleanText = textCleaner.cleanHtml(page.getContent());
             result.setSnippet(textCleaner.getSnippet(cleanText, queryWords, 200));
 

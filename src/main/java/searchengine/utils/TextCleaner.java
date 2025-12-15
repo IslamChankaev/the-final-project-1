@@ -14,10 +14,10 @@ public class TextCleaner {
             return "";
         }
 
-        // Удаляем все теги, оставляем только текст
+
         String text = Jsoup.parse(html).text();
 
-        // Удаляем лишние пробелы
+
         text = text.replaceAll("\\s+", " ").trim();
 
         return text;
@@ -40,7 +40,7 @@ public class TextCleaner {
             return "";
         }
 
-        // Ищем первое вхождение любого слова запроса
+
         int pos = -1;
         for (String word : queryWords) {
             int idx = text.toLowerCase().indexOf(word.toLowerCase());
@@ -50,15 +50,13 @@ public class TextCleaner {
         }
 
         if (pos == -1) {
-            // Если не нашли, берем начало текста
+
             pos = 0;
         }
 
-        // Вычисляем начальную и конечную позиции сниппета
         int start = Math.max(0, pos - snippetLength / 2);
         int end = Math.min(text.length(), start + snippetLength);
 
-        // Корректируем, чтобы не обрезать слова
         while (start > 0 && !Character.isWhitespace(text.charAt(start - 1))) {
             start--;
         }
@@ -69,13 +67,11 @@ public class TextCleaner {
 
         String snippet = text.substring(start, end);
 
-        // Выделяем слова запроса жирным
         for (String word : queryWords) {
             snippet = snippet.replaceAll("(?i)" + Pattern.quote(word),
                     "<b>" + word + "</b>");
         }
 
-        // Добавляем многоточие, если обрезали
         if (start > 0) snippet = "..." + snippet;
         if (end < text.length()) snippet = snippet + "...";
 

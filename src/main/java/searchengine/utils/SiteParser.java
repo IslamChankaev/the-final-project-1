@@ -6,11 +6,6 @@ import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.jsoup.Connection;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.stereotype.Component;
@@ -28,13 +23,6 @@ import java.util.concurrent.RecursiveTask;
 public class SiteParser {
     private final CrawlingSettings crawlingSettings;
     private Set<String> visitedUrls = new HashSet<>();
-
-    // Конструктор будет создан автоматически Lombok'ом благодаря @RequiredArgsConstructor
-    // Он будет выглядеть так:
-    // public SiteParser(CrawlingSettings crawlingSettings) {
-    //     this.crawlingSettings = crawlingSettings;
-    // }
-
     /**
      * Получает Connection.Response для URL с настройками
      */
@@ -94,7 +82,7 @@ public class SiteParser {
         }
     }
 
-    // Геттеры для настроек
+
     public String getUserAgent() {
         return crawlingSettings.getUserAgent();
     }
@@ -139,7 +127,6 @@ public class SiteParser {
             URL parsedUrl = new URL(url);
             URL parsedBaseUrl = new URL(baseUrl);
 
-            // Проверяем, что ссылка принадлежит тому же домену
             return parsedUrl.getHost().equals(parsedBaseUrl.getHost()) &&
                     !url.contains("#") &&
                     !url.matches(".*\\.(pdf|jpg|png|gif|zip|rar)$");

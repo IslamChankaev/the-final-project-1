@@ -30,7 +30,7 @@ public class StatisticsServiceImpl implements StatisticsService {
         StatisticsResponse response = new StatisticsResponse();
         StatisticsData data = new StatisticsData();
 
-        // Общая статистика
+
         StatisticsData.TotalStatistics total = new StatisticsData.TotalStatistics();
         total.setSites(sitesList.getSites().size()); // sitesList.getSites() возвращает List<SiteConfig>
         total.setPages(pageRepository.count());
@@ -38,8 +38,7 @@ public class StatisticsServiceImpl implements StatisticsService {
         total.setIndexing(indexingService.isIndexingActive());
         data.setTotal(total);
 
-        // Детальная статистика по сайтам
-        // Используем sitesList.getSites() и преобразуем каждый SiteConfig
+
         List<DetailedStatisticsItem> detailed = sitesList.getSites().stream()
                 .map(this::createDetailedItem)
                 .collect(Collectors.toList());
@@ -49,7 +48,7 @@ public class StatisticsServiceImpl implements StatisticsService {
         return response;
     }
 
-    // Изменяем тип параметра с SitesList.SiteConfig на SiteConfig
+
     private DetailedStatisticsItem createDetailedItem(SiteConfig siteConfig) {
         DetailedStatisticsItem item = new DetailedStatisticsItem();
         item.setUrl(siteConfig.getUrl());
@@ -63,7 +62,7 @@ public class StatisticsServiceImpl implements StatisticsService {
             item.setLemmas(Math.toIntExact(lemmaRepository.countUniqueLemmasBySite(site)));
         });
 
-        // Если сайт не найден в БД
+
         if (item.getStatus() == null) {
             item.setStatus(Status.FAILED.name());
             item.setStatusTime(0);
