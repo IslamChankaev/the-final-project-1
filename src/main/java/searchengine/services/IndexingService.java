@@ -17,6 +17,7 @@ import searchengine.utils.SiteParser;
 import searchengine.utils.TextCleaner;
 
 import java.io.IOException;
+import java.net.URL;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -68,41 +69,89 @@ public class IndexingService {
 
 
     private void indexSite(SiteConfig siteConfig) {
+        String siteUrl = siteConfig.getUrl();
+
+        log.info("=== START indexing site: {} ===", siteUrl);
+
         try {
 
-            Site site = siteRepository.findByUrl(siteConfig.getUrl())
-                    .orElse(createNewSite(siteConfig));
-            cleanSiteData(site);
+            log.debug("Original URL from config: '{}'", siteUrl);
+            log.debug("URL length: {}", siteUrl != null ? siteUrl.length() : "null");
+            log.debug("URL trimmed: '{}'", siteUrl != null ? siteUrl.trim() : "null");
+            log.debug("URL starts with http: {}", siteUrl != null && siteUrl.startsWith("http"));
 
+            if (siteUrl == null || siteUrl.trim().isEmpty()) {
+                log.error("Site URL is empty for site: {}", siteConfig.getName());
+                updateSiteStatus(siteUrl, Status.FAILED, "URL сайта пустой");
+                return;
+            }
+
+            siteUrl = normalizeUrlForIndexing(siteUrl);
+
+            List<Site> existingSites = siteRepository.findAllByUrl(siteUrl);
+            Site site;
+
+            if (existingSites.isEmpty()) {
+                site = createNewSite(siteConfig);
+            } else {
+                site = existingSites.get(0);
+
+                for (int i = 1; i < existingSites.size(); i++) {
+                    cleanSiteData(existingSites.get(i));
+                    siteRepository.delete(existingSites.get(i));
+                }
+            }
+
+            cleanSiteData(site);
 
             site.setStatus(Status.INDEXING);
             site.setLastError(null);
+            site.setUrl(siteUrl);
             siteRepository.save(site);
-
 
             Set<String> visitedUrls = Collections.synchronizedSet(new HashSet<>());
             SiteParser.PageParseTask task = new SiteParser.PageParseTask(
-                    siteConfig.getUrl(), siteConfig.getUrl(), siteParser, visitedUrls, 0);
+                    siteUrl, siteUrl, siteParser, visitedUrls, 0);
 
             Set<String> allUrls = forkJoinPool.invoke(task);
 
+            log.info("Found {} URLs to index for site: {}", allUrls.size(), siteUrl);
+
+            int successCount = 0;
+            int errorCount = 0;
 
             for (String url : allUrls) {
                 if (!isIndexing.get()) {
                     break;
                 }
-                indexPage(url, site);
+
+                try {
+                    indexPage(url, site);
+                    successCount++;
+                } catch (Exception e) {
+                    errorCount++;
+                    log.error("Error indexing URL {}: {}", url, e.getMessage());
+                }
+
+                if (successCount % 10 == 0) {
+                    site.setStatusTime(LocalDateTime.now());
+                    siteRepository.save(site);
+                }
             }
+
+            log.info("Indexing completed for {}: {} successful, {} errors",
+                    siteUrl, successCount, errorCount);
 
             if (isIndexing.get()) {
                 site.setStatus(Status.INDEXED);
+                site.setStatusTime(LocalDateTime.now());
                 siteRepository.save(site);
             }
 
         } catch (Exception e) {
-            log.error("Error indexing site: {}", siteConfig.getUrl(), e);
-            updateSiteStatus(siteConfig.getUrl(), Status.FAILED,
-                    "Ошибка индексации: " + e.getMessage());
+            log.error("=== CRITICAL ERROR in indexSite ===", e);
+            updateSiteStatus(siteUrl, Status.FAILED,
+                    "Критическая ошибка: " + e.getClass().getSimpleName() + " - " + e.getMessage());
         }
     }
 
@@ -172,22 +221,29 @@ public class IndexingService {
          */
         private void indexPage(String url, Site site) throws IOException {
             try {
-                log.debug("Indexing page: {}", url);
+                if (url == null || url.trim().isEmpty()) {
+                    log.warn("Empty URL provided for site: {}", site.getUrl());
+                    return;
+                }
+
+                url = normalizeUrlForIndexing(url);
+
+                if (!isValidUrl(url)) {
+                    log.warn("Invalid URL: {}", url);
+                    return;
+                }
 
 
                 SiteParser.PageData pageData = siteParser.getPageData(url);
                 int statusCode = pageData.getStatusCode();
                 Document doc = pageData.getDocument();
 
-
                 String path = extractPath(url, site.getUrl());
-
 
                 Optional<Page> existingPage = pageRepository.findByPathAndSite(path, site);
 
                 Page page;
                 if (existingPage.isPresent()) {
-
                     page = existingPage.get();
                     deletePageData(page);
                 } else {
@@ -210,26 +266,53 @@ public class IndexingService {
                 }
 
             } catch (Exception e) {
-                log.error("Error indexing page: {}", url, e);
-                throw new IOException("Failed to index page: " + url, e);
+                log.error("Error indexing page: {} for site: {}", url, site.getUrl(), e);
             }
         }
 
-        /**
+    private String normalizeUrlForIndexing(String url) {
+        if (url == null) return "";
+
+        url = url.trim();
+
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            url = "http://" + url;
+        }
+
+        int hashIndex = url.indexOf('#');
+        if (hashIndex != -1) {
+            url = url.substring(0, hashIndex);
+        }
+
+        return url;
+    }
+
+    private boolean isValidUrl(String url) {
+        if (url == null || url.isEmpty()) {
+            return false;
+        }
+
+        try {
+            new URL(url);
+            return true;
+        } catch (Exception e) {
+            log.warn("Invalid URL format: {}", url);
+            return false;
+        }
+    }
+
+    /**
          * Индексирует контент страницы (леммы и индексы)
          */
         private void indexPageContent(Page page, Document doc) {
             try {
 
                 String cleanText = textCleaner.cleanHtml(doc.html());
-
-
                 Map<String, Integer> lemmasMap = lemmaExtractor.extractLemmas(cleanText);
 
                 for (Map.Entry<String, Integer> entry : lemmasMap.entrySet()) {
                     String lemmaText = entry.getKey();
                     int frequency = entry.getValue();
-
 
                     Optional<Lemma> existingLemma = lemmaRepository.findByLemmaAndSite(lemmaText, page.getSite());
                     Lemma lemma;
@@ -252,7 +335,7 @@ public class IndexingService {
                     Index index = new Index();
                     index.setPage(page);
                     index.setLemma(lemma);
-                    index.setRank((float) frequency);
+                    index.setRelevance((float) frequency);
                     indexRepository.save(index);
                 }
 
@@ -287,17 +370,42 @@ public class IndexingService {
          */
         private String extractPath(String fullUrl, String baseUrl) {
             try {
-
-                if (baseUrl.endsWith("/")) {
-                    baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+                if (fullUrl == null || fullUrl.isEmpty()) {
+                    log.warn("Full URL is null or empty");
+                    return "/";
                 }
 
+                if (baseUrl == null || baseUrl.isEmpty()) {
+                    log.warn("Base URL is null or empty for full URL: {}", fullUrl);
+                    return "/";
+                }
+
+                String normalizedFullUrl = normalizeUrl(fullUrl);
+                String normalizedBaseUrl = normalizeUrl(baseUrl);
+
+                if (!normalizedFullUrl.startsWith(normalizedBaseUrl)) {
+                    log.warn("URL {} doesn't start with base URL {}", fullUrl, baseUrl);
+                    return "/";
+                }
 
                 String path = fullUrl.substring(baseUrl.length());
 
-
                 if (path.isEmpty()) {
                     return "/";
+                }
+
+                if (!path.startsWith("/")) {
+                    path = "/" + path;
+                }
+
+                int anchorIndex = path.indexOf('#');
+                if (anchorIndex != -1) {
+                    path = path.substring(0, anchorIndex);
+                }
+
+                int queryIndex = path.indexOf('?');
+                if (queryIndex != -1) {
+                    path = path.substring(0, queryIndex);
                 }
 
                 return path;
@@ -307,6 +415,15 @@ public class IndexingService {
                 return "/";
             }
         }
+
+    private String normalizeUrl(String url) {
+        if (url == null) return "";
+
+        return url.toLowerCase()
+                .replace("http://", "")
+                .replace("https://", "")
+                .replace("www.", "");
+    }
 
         /**
          * Удаляет все данные, связанные со страницей (индексы и саму страницу)

@@ -5,7 +5,7 @@ import lombok.Data;
 import javax.persistence.*;
 
 @Entity
-@Table(name = "index",
+@Table(name = "search_index",
         indexes = {@javax.persistence.Index(name = "index_page_lemma", columnList = "page_id, lemma_id")})
 @Data
 public class Index {
@@ -23,6 +23,6 @@ public class Index {
             foreignKey = @ForeignKey(name = "fk_index_lemma"))
     private Lemma lemma;
 
-    @Column(nullable = false)
-    private float rank;
+    @Column(name = "relevance", nullable = false)
+    private float relevance;
 }

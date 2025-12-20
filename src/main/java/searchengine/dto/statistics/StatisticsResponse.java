@@ -4,6 +4,10 @@ import lombok.Data;
 
 @Data
 public class StatisticsResponse {
-    private boolean result;
+    private boolean result = true;
     private StatisticsData statistics;
+
+    public StatisticsResponse() {
+        this.statistics = new StatisticsData();
+    }
 }

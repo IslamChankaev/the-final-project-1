@@ -3,6 +3,7 @@ package searchengine.services;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Service;
 import searchengine.dto.statistics.SearchResult;
 import searchengine.dto.statistics.SearchResponse;
@@ -25,7 +26,7 @@ public class SearchService {
     private final LemmaExtractor lemmaExtractor;
     private final TextCleaner textCleaner;
 
-    private final double EXCLUDE_THRESHOLD = 0.8; // Исключать леммы, встречающиеся на >80% страниц
+    private final double EXCLUDE_THRESHOLD = 0.8;
 
     public SearchResponse search(String query, String siteUrl, int offset, int limit) {
         SearchResponse response = new SearchResponse();
@@ -52,9 +53,7 @@ public class SearchService {
                 allResults.addAll(siteResults);
             }
 
-
             allResults.sort((a, b) -> Double.compare(b.getRelevance(), a.getRelevance()));
-
 
             int total = allResults.size();
             int end = Math.min(offset + limit, total);
@@ -103,9 +102,7 @@ public class SearchService {
             return List.of();
         }
 
-
         siteLemmas.sort(Comparator.comparingInt(Lemma::getFrequency));
-
 
         List<Page> foundPages = findPagesByLemmas(siteLemmas, site);
 
@@ -145,15 +142,12 @@ public class SearchService {
             return List.of();
         }
 
-
         Lemma firstLemma = lemmas.get(0);
-
 
         List<Page> pages = indexRepository.findByLemma(firstLemma).stream()
                 .map(Index::getPage)
                 .filter(page -> page.getSite().equals(site))
                 .collect(Collectors.toList());
-
 
         for (int i = 1; i < lemmas.size() && !pages.isEmpty(); i++) {
             Lemma lemma = lemmas.get(i);
@@ -171,7 +165,6 @@ public class SearchService {
     private Map<Page, Double> calculateRelevance(List<Page> pages, List<Lemma> lemmas) {
         Map<Page, Double> relevanceMap = new HashMap<>();
         double maxRelevance = 0.0;
-
 
         for (Page page : pages) {
             Float sumRank = indexRepository.calculateRelevanceForPage(page, lemmas);

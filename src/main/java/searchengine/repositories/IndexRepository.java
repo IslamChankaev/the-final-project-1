@@ -37,12 +37,12 @@ public interface IndexRepository extends JpaRepository<Index, Integer> {
     @Query("DELETE FROM Index i WHERE i.lemma = :lemma")
     void deleteByLemma(Lemma lemma);
 
-    @Query("SELECT SUM(i.rank) FROM Index i WHERE i.page = :page AND i.lemma IN :lemmas")
+    @Query("SELECT SUM(i.relevance) FROM Index i WHERE i.page = :page AND i.lemma IN :lemmas")
     Float calculateRelevanceForPage(Page page, List<Lemma> lemmas);
 
     @Query("SELECT i FROM Index i JOIN i.page p WHERE i.lemma = :lemma AND p.site = :site")
     List<Index> findByLemmaAndSite(Lemma lemma, searchengine.model.Site site);
 
-    @Query("SELECT i.rank FROM Index i WHERE i.page = :page AND i.lemma = :lemma")
+    @Query("SELECT i.relevance FROM Index i WHERE i.page = :page AND i.lemma = :lemma")
     Float findRankByPageAndLemma(Page page, Lemma lemma);
 }

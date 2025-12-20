@@ -10,7 +10,7 @@ spring:
   jpa:
     database-platform: org.hibernate.dialect.MySQL8Dialect
     hibernate:
-      ddl-auto: update
+      ddl-auto: create-drop
     show-sql: true
     properties:
       hibernate:
@@ -20,7 +20,7 @@ indexing-settings:
   sites:
     - url: https://www.lenta.ru
       name: Лента.ру
-    - url: https://www.skillbox.ru
+    - url: https://go.skillbox.ru
       name: Skillbox
     - url: https://www.playback.ru
       name: PlayBack.Ru
@@ -28,3 +28,8 @@ indexing-settings:
   referrer: http://www.google.com
   delay-between-requests: 500
   max-pages-per-site: 1000
+logging:
+  level:
+    searchengine: TRACE
+    org.springframework.web: DEBUG
+    org.hibernate: ERROR

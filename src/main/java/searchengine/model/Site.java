@@ -6,7 +6,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
-@Table(name = "site")
+@Table(name = "site", uniqueConstraints = {
+        @UniqueConstraint(columnNames = "url")
+})
 @Data
 public class Site {
     @Id
