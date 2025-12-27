@@ -20,7 +20,7 @@ indexing-settings:
   sites:
     - url: https://www.lenta.ru
       name: Лента.ру
-    - url: https://go.skillbox.ru
+    - url: https://www.skillbox.ru
       name: Skillbox
     - url: https://www.playback.ru
       name: PlayBack.Ru
